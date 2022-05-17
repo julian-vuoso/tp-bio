@@ -75,7 +75,7 @@ def interpret_blast(blast, error):
                 output += "match: %s\n" % hsp.match
                 output += "sbjct: %s\n\n" % hsp.sbjct
 
-    f = open("out2/blast.out", "w")
+    f = open('out2/blast.out', 'w')
     f.write(output)
     f.close()
 
