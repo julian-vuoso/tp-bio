@@ -9,36 +9,48 @@ DIRECT_FASTA = 's'
 
 
 def print_help():
-    print('Usage: python Ej2.py [f|s <file>|<FASTA> [<error>]]')
+    print('Usage: python Ej2.py [-f|-s <file>|<FASTA>] [-e <error>] [-r <previous_result>]')
     print('where: f indicates read fasta from file')
-    print('where: s indicates that a fasta string is directly passed as input')
-    print('where: <file> is the file location containing the fasta string')
-    print('where: <FASTA> is the fasta string passed as input')
-    print('where: <error> is a custom error threshold')
+    print('       s indicates that a fasta string is directly passed as input')
+    print('       <file> is the file location containing the fasta string')
+    print('       <FASTA> is the fasta string passed as input')
+    print('       <error> is a custom error threshold')
+    print('       r specifies a previous BLAST result to interpret. Otherwise, it will use the API to perform a BLAST against NCBI')
+    print(sys.argv)
 
 
 def parse_args(args):
-    if len(args) > 1:
-        if len(args) < 3 or len(args) > 4:
-            print_help()
-            exit(1)
-        else:
-            if args[0] != READ_FROM_FILE or args[0] != DIRECT_FASTA:
-                print_help()
-                exit(1)
+    read_from_file = True
+    data = 'out1/out-1.fasta'
+    error = DEFAULT_ERROR_THRESHOLD
+    blast_result = None
 
-            read_from_file = args[0] == READ_FROM_FILE
-            data = args[1]
-            if len(args) > 3:
-                error = float(args[2])
-            else:
-                error = DEFAULT_ERROR_THRESHOLD
-    else:
-        read_from_file = False
-        data = 'out1/out-1.fasta'
-        error = DEFAULT_ERROR_THRESHOLD
+    if len(args) % 2 == 0:
+        print_help()
+        exit(1)
 
-    return read_from_file, data, error
+    found_args = (len(args) - 1) / 2
+    for i in range(1, len(args) - 1, 2):
+        if args[i] == '-f':
+            read_from_file = True
+            data = args[i + 1]
+            found_args -= 1
+        elif args[i] == '-s':
+            read_from_file = False
+            data = args[i + 1]
+            found_args -= 1
+        elif args[i] == '-e':
+            error = float(args[i + 1])
+            found_args -= 1
+        elif args[i] == '-r':
+            blast_result = args[i + 1]
+            found_args -= 1
+
+    if found_args != 0:
+        print_help()
+        exit(1)
+
+    return read_from_file, data, error, blast_result
 
 
 def get_fasta(read_from_file, data):
@@ -54,9 +66,13 @@ def read_fasta(filename):
     return fasta_string
 
 
-def perform_blast(fasta):
-    result_handle = NCBIWWW.qblast('blastp', 'nr', fasta)
-    return NCBIXML.read(result_handle)
+def perform_blast(fasta, blast_in_file):
+    if blast_in_file is None:
+        return NCBIXML.read(NCBIWWW.qblast('blastp', 'nr', fasta))
+    else:
+        with open(blast_in_file) as f:
+            data = NCBIXML.read(f)
+    return data
 
 
 def interpret_blast(blast, error):
@@ -64,7 +80,7 @@ def interpret_blast(blast, error):
     for alignment in blast.alignments:
         for hsp in alignment.hsps:
             if hsp.expect < error:
-                output += "****Alignment****\n"
+                output += "*Result*\n"
                 output += "sequence: %s\n" % alignment.hit_def.split(' >')[0]
                 output += "accession: %s\n" % alignment.hit_id.split('|')[1]
                 output += "length: %d\n" % alignment.length
@@ -81,9 +97,9 @@ def interpret_blast(blast, error):
 
 
 def main():
-    read_from_file, data, error = parse_args(sys.argv)
+    read_from_file, data, error, blast_in_file = parse_args(sys.argv)
     fasta = get_fasta(read_from_file, data)
-    blast_record = perform_blast(fasta)
+    blast_record = perform_blast(fasta, blast_in_file)
     interpret_blast(blast_record, error)
 
 
