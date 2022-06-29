@@ -48,3 +48,29 @@ Ejemplo:
 ```bash
 python3 Ej3.py in3/sequence.fasta
 ```
+
+## Ejercicio 4
+
+```bash
+python3 Ej4.py
+```
+
+Ejemplo:
+
+```bash
+python3 Ej4.py "Mus" -f "in4/blast.out"
+```
+
+## Ejercicio 5
+
+Para esto es necesario tener instalado EMBOSS y la base de datos de PROSITE.
+
+Dependiendo de tu usuario, puede ser que necesites permisos de administrador para ejecutar
+el script en bash.
+
+El script espera un input `sequence.gb` conteniendo el input en formato Genbank
+y genera dos archivos, `emboss.orf` y `emboss.patmatmotifs`
+
+```bash
+./Ej5.sh
+```
