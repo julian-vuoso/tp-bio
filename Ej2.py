@@ -50,7 +50,7 @@ def parse_args(args):
 
     fasta = args[1]
     try:
-        for i in range(2, len(args) - 2, 2):
+        for i in range(2, len(args), 2):
             if args[i] == '-f':
                 fasta = args[i + 1]
             elif args[i] == '-e':

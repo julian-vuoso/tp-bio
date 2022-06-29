@@ -36,7 +36,7 @@ def parse_args(args):
     orf_len = DEFAULT_ORF_LENGTH
 
     try:
-        for i in range(2, len(args) - 1, 2):
+        for i in range(2, len(args), 2):
             if args[i] == '-l':
                 orf_len = int(args[i + 1])
             elif args[i] == '-o':

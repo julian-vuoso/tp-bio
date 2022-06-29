@@ -37,7 +37,7 @@ def parse_args(args):
     input_file = args[1]
     skip = 0
     try:
-        for i in range(2, len(args) - 2):
+        for i in range(2, len(args)):
             if skip > 0:
                 skip -= 1
                 continue
