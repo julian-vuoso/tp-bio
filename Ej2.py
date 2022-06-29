@@ -3,59 +3,87 @@ import sys
 from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
 
+
+BLAST_OUTPUT_TEMPLATE = '''****Alignment****
+sequence: {}
+accession: {}
+length: {:d}
+score: {}
+identity: {:d}/{:d}({:.2f}%)
+E-value: {:f}
+query: {}
+match: {}
+sbjct: {}'''
+
+
 DEFAULT_ERROR_THRESHOLD = 1E-20
-READ_FROM_FILE = 'f'
-DIRECT_FASTA = 's'
+DEFAULT_OUTPUT_FILE = 'blast.out'
+
+
+def print_error(error, ex=None):
+    print('Error ' + error + (': {}'.format(ex) if ex else ''))
+
+
+def terminate(error, ex=None):
+    print_error(error, ex)
+    exit(1)
 
 
 def print_help():
-    print('Usage: python Ej2.py [-f|-s <file>|<FASTA>] [-e <error>] [-r <previous_result>]')
+    print('Usage: python {} -f|-s <file>|<FASTA> [-e <error>] [-r <previous_result>] [-o <output_file>]'.format(sys.argv[0]))
     print('where: f indicates read fasta from file')
     print('       s indicates that a fasta string is directly passed as input')
     print('       <file> is the file location containing the fasta string')
     print('       <FASTA> is the fasta string passed as input')
-    print('       <error> is a custom error threshold')
-    print('       r specifies a previous BLAST result to interpret. Otherwise, it will use the API to perform a BLAST against NCBI')
-    print(sys.argv)
+    print('       <error> is a custom error threshold, default is {:e}'.format(DEFAULT_ERROR_THRESHOLD))
+    print('       r specifies a previous BLAST XML result (file) to interpret. Otherwise, it will use the API to perform a BLAST against NCBI')
+    print('       o specifies an output file, default is \'{}\''.format(DEFAULT_OUTPUT_FILE))
 
 
 def parse_args(args):
     read_from_file = True
-    data = 'out1/out-1.fasta'
+    output_file = DEFAULT_OUTPUT_FILE
+    fasta = None
     error = DEFAULT_ERROR_THRESHOLD
     blast_result = None
 
-    if len(args) % 2 == 0:
+    if len(args) == 1:
         print_help()
         exit(1)
 
-    found_args = (len(args) - 1) / 2
-    for i in range(1, len(args) - 1, 2):
-        if args[i] == '-f':
-            read_from_file = True
-            data = args[i + 1]
-            found_args -= 1
-        elif args[i] == '-s':
-            read_from_file = False
-            data = args[i + 1]
-            found_args -= 1
-        elif args[i] == '-e':
-            error = float(args[i + 1])
-            found_args -= 1
-        elif args[i] == '-r':
-            blast_result = args[i + 1]
-            found_args -= 1
+    try:
+        for i in range(1, len(args) - 1, 2):
+            if args[i] == '-f':
+                read_from_file = True
+                fasta = args[i + 1]
+            elif args[i] == '-s':
+                read_from_file = False
+                fasta = args[i + 1]
+            elif args[i] == '-e':
+                error = float(args[i + 1])
+            elif args[i] == '-r':
+                blast_result = args[i + 1]
+            elif args[i] == '-o':
+                output_file = args[i + 1]
+            else:
+                print_help()
+                exit(1)
+    except Exception as e:
+        terminate('parsing arguments', e)
 
-    if found_args != 0:
-        print_help()
+    if fasta is None:
+        terminate('parsing arguments, no FASTA file/string provided')
         exit(1)
 
-    return read_from_file, data, error, blast_result
+    return read_from_file, fasta, error, blast_result, output_file
 
 
 def get_fasta(read_from_file, data):
     if read_from_file:
-        return read_fasta(data)
+        try:
+            return read_fasta(data)
+        except Exception as e:
+            terminate('reading FASTA file', e)
     else:
         return data
 
@@ -67,40 +95,64 @@ def read_fasta(filename):
 
 
 def perform_blast(fasta, blast_in_file):
-    if blast_in_file is None:
-        return NCBIXML.read(NCBIWWW.qblast('blastp', 'nr', fasta))
-    else:
-        with open(blast_in_file) as f:
-            data = NCBIXML.read(f)
+    try:
+        if blast_in_file is None:
+            print('Performing an online BLAST...')
+            return NCBIXML.read(NCBIWWW.qblast('blastp', 'nr', fasta))
+        else:
+            print('Reading BLAST from input file...')
+            with open(blast_in_file, 'r') as f:
+                data = NCBIXML.read(f)
+    except Exception as e:
+        terminate('performing BLAST', e)
+
     return data
 
 
-def interpret_blast(blast, error):
-    output = ""
+def format_blast_result(alignment, hsp):
+    return BLAST_OUTPUT_TEMPLATE.format(
+        alignment.hit_def.split(' >')[0],
+        alignment.hit_id.split('|')[1],
+        alignment.length,
+        str(hsp.score),
+        hsp.identities, hsp.align_length, (100 * hsp.identities / hsp.align_length),
+        hsp.expect,
+        hsp.query,
+        hsp.match,
+        hsp.sbjct
+    )
+
+
+def get_blast_results(blast, error):
+    results = []
     for alignment in blast.alignments:
         for hsp in alignment.hsps:
             if hsp.expect < error:
-                output += "*Result*\n"
-                output += "sequence: %s\n" % alignment.hit_def.split(' >')[0]
-                output += "accession: %s\n" % alignment.hit_id.split('|')[1]
-                output += "length: %d\n" % alignment.length
-                output += "score: %s\n" % str(hsp.score)
-                output += "identity: %d/%d(%.2f%%)\n" % (hsp.identities, hsp.align_length, (100 * hsp.identities / hsp.align_length))
-                output += "E-value: %f\n" % hsp.expect
-                output += "query: %s\n" % hsp.query
-                output += "match: %s\n" % hsp.match
-                output += "sbjct: %s\n\n" % hsp.sbjct
+                results.append(format_blast_result(alignment, hsp))
+    return results
 
-    f = open('out2/blast.out', 'w')
-    f.write(output)
-    f.close()
+
+def save_results(results, output_file):
+    try:
+        with open(output_file, 'w') as f:
+            f.write('\n\n'.join(results))
+    except Exception as e:
+        terminate('saving BLAST results', e)
 
 
 def main():
-    read_from_file, data, error, blast_in_file = parse_args(sys.argv)
+    read_from_file, data, error, blast_in_file, output_file = parse_args(sys.argv)
+    print('Parsed arguments, getting FASTA string...')
     fasta = get_fasta(read_from_file, data)
+    print('Got FASTA, performing BLAST...')
     blast_record = perform_blast(fasta, blast_in_file)
-    interpret_blast(blast_record, error)
+    print('Performed BLAST, interpreting BLAST...')
+    results = get_blast_results(blast_record, error)
+    print('Interpreted BLAST, found {} results, saving them...'.format(len(results)))
+    save_results(results, output_file)
+    print('Saved results to {}'.format(output_file))
+
+    print('All done.')
 
 
 if __name__ == '__main__':
