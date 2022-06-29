@@ -56,8 +56,7 @@ def read_blast(input_file):
         with open(input_file, 'r') as f:
             data = f.read()
 
-        blast_results = split_blast_input('****Alignment****', data)
-        return blast_results
+        return split_blast_input('****Alignment****', data)
     except Exception as e:
         terminate('reading BLAST input', e)
 
