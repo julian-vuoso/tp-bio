@@ -94,7 +94,7 @@ def align(filename, output_file, muscle_exe):
 
 def save_results(alignments, output_file):
     try:
-        AlignIO.write(alignments, output_file, "clustal")
+        AlignIO.write(alignments, output_file, "fasta")
     except Exception as e:
         terminate('saving BLAST results', e)
 
