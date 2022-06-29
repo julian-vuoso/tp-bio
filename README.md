@@ -25,6 +25,17 @@ python3 Ej1.py sequence.gb -o 'out1/out' -l 300
 ```
 
 ## Ejercicio 2
+
+Para este ejercicio, es posible realizar un BLAST local utilizando la base de datos
+de Swissprot. Para esto, se incluye un archivo de python para poder mantener actualizada 
+la base de datos:
+
+```bash
+python3 utils/swissprot_updater.py <makeblastdb_path>
+```
+
+Para correr el ejercicio en si:
+
 ```bash
 python3 Ej2.py
 ```
