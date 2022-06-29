@@ -16,6 +16,7 @@ match: {}
 sbjct: {}'''
 
 
+PROGRAM_NAME = sys.argv[0]
 DEFAULT_ERROR_THRESHOLD = 1E-20
 DEFAULT_OUTPUT_FILE = 'blast.out'
 
@@ -30,10 +31,8 @@ def terminate(error, ex=None):
 
 
 def print_help():
-    print('Usage: python {} -f|-s <file>|<FASTA> [-e <error>] [-r <previous_result>] [-o <output_file>]'.format(sys.argv[0]))
-    print('where: f indicates read fasta from file')
-    print('       s indicates that a fasta string is directly passed as input')
-    print('       <file> is the file location containing the fasta string')
+    print('Usage: python {} <file> [-e <error>] [-r <previous_result>] [-o <output_file>]'.format(PROGRAM_NAME))
+    print('where: <file> is the file location containing the fasta string')
     print('       <FASTA> is the fasta string passed as input')
     print('       <error> is a custom error threshold, default is {:e}'.format(DEFAULT_ERROR_THRESHOLD))
     print('       r specifies a previous BLAST XML result (file) to interpret. Otherwise, it will use the API to perform a BLAST against NCBI')
@@ -41,9 +40,7 @@ def print_help():
 
 
 def parse_args(args):
-    read_from_file = True
     output_file = DEFAULT_OUTPUT_FILE
-    fasta = None
     error = DEFAULT_ERROR_THRESHOLD
     blast_result = None
 
@@ -51,13 +48,10 @@ def parse_args(args):
         print_help()
         exit(1)
 
+    fasta = args[1]
     try:
-        for i in range(1, len(args) - 1, 2):
+        for i in range(2, len(args) - 2, 2):
             if args[i] == '-f':
-                read_from_file = True
-                fasta = args[i + 1]
-            elif args[i] == '-s':
-                read_from_file = False
                 fasta = args[i + 1]
             elif args[i] == '-e':
                 error = float(args[i + 1])
@@ -71,21 +65,14 @@ def parse_args(args):
     except Exception as e:
         terminate('parsing arguments', e)
 
-    if fasta is None:
-        terminate('parsing arguments, no FASTA file/string provided')
-        exit(1)
-
-    return read_from_file, fasta, error, blast_result, output_file
+    return fasta, error, blast_result, output_file
 
 
-def get_fasta(read_from_file, data):
-    if read_from_file:
-        try:
-            return read_fasta(data)
-        except Exception as e:
-            terminate('reading FASTA file', e)
-    else:
-        return data
+def get_fasta(data):
+    try:
+        return read_fasta(data)
+    except Exception as e:
+        terminate('reading FASTA file', e)
 
 
 def read_fasta(filename):
@@ -141,9 +128,9 @@ def save_results(results, output_file):
 
 
 def main():
-    read_from_file, data, error, blast_in_file, output_file = parse_args(sys.argv)
+    filename, error, blast_in_file, output_file = parse_args(sys.argv)
     print('Parsed arguments, getting FASTA string...')
-    fasta = get_fasta(read_from_file, data)
+    fasta = get_fasta(filename)
     print('Got FASTA, performing BLAST...')
     blast_record = perform_blast(fasta, blast_in_file)
     print('Performed BLAST, interpreting BLAST...')

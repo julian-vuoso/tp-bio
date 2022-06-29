@@ -95,6 +95,7 @@ def main():
     orfs = get_orfs(data, orf_len)
     print('Found {} proteins of min length {}, saving them...'.format(len(orfs), orf_len))
     save_orfs(orfs, output_prefix)
+
     print('All done.')
 
 
